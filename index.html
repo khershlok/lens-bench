@@ -1,0 +1,195 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Lens Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: an optical bench on a dark lab table. Big canvas first, controls in a panel beside it (stacked on phones). Single dark look by choice: light rays read best on dark. */
+  :root {
+    --bg: #070b13;
+    --panel: #0f1625;
+    --line: #22304a;
+    --fg: #dfe8f5;
+    --muted: #8fa1bd;
+    --amber: #ffc45c;
+    --cyan: #7fe0f0;
+    --pink: #f28fb4;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--fg); }
+  body { font: 15px/1.5 var(--font-body); padding: 20px 16px 40px; }
+  .wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 18px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 24px; }
+  h1 { font: 700 clamp(28px, 4vw, 40px)/1.05 var(--font-display); margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+  h1 span { color: var(--amber); }
+  .sub { margin: 4px 0 0; color: var(--muted); max-width: 62ch; }
+
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage { min-width: 0; display: grid; gap: 10px; }
+  canvas#bench {
+    display: block; width: 100%; aspect-ratio: 16 / 8.4; min-height: 280px; max-width: 100%;
+    border-radius: 10px; border: 1px solid var(--line); background: #0b111c;
+    touch-action: none; cursor: crosshair;
+  }
+  #hint { margin: 0; color: var(--muted); font-size: 14px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 12px var(--font-mono); color: var(--muted); }
+  .legend i { display: inline-block; width: 18px; height: 0; vertical-align: middle; margin-right: 6px; border-top: 2px solid; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 16px; min-width: 0; }
+  .group { display: grid; gap: 8px; }
+  .label { font: 600 11px var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); display: flex; justify-content: space-between; }
+  .label output { color: var(--fg); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+  .seg button {
+    font: 500 13px var(--font-body); color: var(--muted); background: transparent; border: 0; border-radius: 6px;
+    padding: 7px 4px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: #1d2a42; color: var(--fg); box-shadow: inset 0 0 0 1px #34476a; }
+  .seg button:focus-visible, .chips button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+  input[type="range"] { width: 100%; accent-color: var(--amber); margin: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips button {
+    font: 12px var(--font-mono); color: var(--muted); background: transparent; border: 1px solid var(--line);
+    border-radius: 999px; padding: 3px 9px; cursor: pointer;
+  }
+  .chips button:hover { color: var(--fg); border-color: #3a4d72; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .checks label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+  .checks input { accent-color: var(--amber); width: 16px; height: 16px; margin: 0; }
+
+  #readout { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .stat { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+  .stat span { color: var(--muted); }
+  .stat b { font: 600 13px var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+  table.snell { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13px; }
+  .snell th { font: 600 11px var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); text-align: left; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .snell td { padding: 6px 0; border-bottom: 1px solid #18233a; vertical-align: top; }
+  .snell td small { display: block; color: var(--muted); font-size: 12px; }
+  .snell .in, .snell .out { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .snell td.in { color: var(--amber); }
+  .snell td.out { color: var(--cyan); }
+  .snell em { font-style: normal; color: var(--pink); font-family: var(--font-body); }
+  .formula { margin: 4px 0 0; font: 12px var(--font-mono); color: var(--muted); }
+  .note { margin: 4px 0 0; font-size: 14px; color: #c3d0e4; }
+  #status { color: var(--pink); font-family: var(--font-mono); font-size: 13px; margin: 0; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Lens <span>Bench</span></h1>
+      <p class="sub">Watch light bend as it enters and leaves a glass lens. Each ray follows Snell's law at both surfaces, so you can see why rays hitting the edge of the lens bend more than rays through the middle.</p>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="stage">
+      <canvas id="bench" aria-label="Animated diagram of light rays refracting through a lens"></canvas>
+      <p id="status" hidden></p>
+      <p id="hint">Loading…</p>
+      <div class="legend">
+        <span><i style="border-color: var(--amber)"></i>light ray</span>
+        <span><i style="border-color: #d6e2f4; border-top-style: dashed"></i>surface normal</span>
+        <span><i style="border-color: var(--amber); border-top-style: dotted; opacity: .6"></i>traced back (virtual)</span>
+        <span style="color: var(--pink)">● F, F′ focal points</span>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="group">
+        <div class="label">Lens</div>
+        <div class="seg" id="kind">
+          <button type="button" data-value="convex">Convex</button>
+          <button type="button" data-value="concave">Concave</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="label">Light source</div>
+        <div class="seg" id="mode">
+          <button type="button" data-value="parallel">Beam</button>
+          <button type="button" data-value="point">Point</button>
+          <button type="button" data-value="single">One ray</button>
+        </div>
+      </div>
+
+      <div class="group" data-modes="single">
+        <label class="label" for="height">Ray height <output id="height-out"></output></label>
+        <input type="range" id="height" min="-60" max="60" step="1">
+      </div>
+
+      <div class="group">
+        <label class="label" for="index">Refractive index n <output id="index-out"></output></label>
+        <input type="range" id="index" min="1" max="2.42" step="0.01">
+        <div class="chips">
+          <button type="button" data-n="1.33">water 1.33</button>
+          <button type="button" data-n="1.52">glass 1.52</button>
+          <button type="button" data-n="1.9">flint 1.90</button>
+          <button type="button" data-n="2.42">diamond 2.42</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <label class="label" for="radius">Surface curvature radius <output id="radius-out"></output></label>
+        <input type="range" id="radius" min="42" max="220" step="1">
+      </div>
+
+      <div class="group" data-modes="parallel single">
+        <label class="label" for="angle">Beam angle <output id="angle-out"></output></label>
+        <input type="range" id="angle" min="-20" max="20" step="1">
+      </div>
+
+      <div class="group" data-modes="parallel point">
+        <label class="label" for="count">Number of rays <output id="count-out"></output></label>
+        <input type="range" id="count" min="1" max="31" step="2">
+      </div>
+
+      <div class="group">
+        <label class="label" for="speed">Pulse speed <output id="speed-out"></output></label>
+        <input type="range" id="speed" min="0" max="3" step="0.1">
+      </div>
+
+      <div class="checks">
+        <label data-modes="single"><input type="checkbox" id="sweep"> Sweep ray</label>
+        <label data-modes="single"><input type="checkbox" id="normals"> Normals</label>
+        <label><input type="checkbox" id="dispersion"> Split colours</label>
+        <label><input type="checkbox" id="virtual"> Trace back</label>
+      </div>
+
+      <div id="readout"></div>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/typescript/5.6.3/typescript.min.js"></script>
+<script>
+  // Compiles lens.ts in the browser, then runs the output.
+  (async () => {
+    const status = document.getElementById("status");
+    try {
+      const res = await fetch("lens.ts");
+      if (!res.ok) throw new Error("lens.ts returned " + res.status);
+      const source = await res.text();
+      const { outputText } = ts.transpileModule(source, {
+        compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None, strict: true },
+      });
+      const script = document.createElement("script");
+      script.textContent = outputText;
+      document.body.appendChild(script);
+    } catch (err) {
+      status.textContent = "The simulation could not start: " + err.message;
+      status.hidden = false;
+    }
+  })();
+</script>
+
+</body></html>
